@@ -77,7 +77,11 @@ def check_file_in_work_dir(arg_names, **kwargs):
             work_dir = new_kwargs["work_dir"]
             for arg_name in arg_names:
                 file_name = new_kwargs[arg_name]
-                if not os.path.abspath(os.path.join(work_dir, file_name)).startswith(os.path.abspath(work_dir)):
+                # Problem: the original code was unable to check files in `data` and `submission`, which use symbolic links
+                # if not os.path.abspath(os.path.join(work_dir, file_name)).startswith(os.path.abspath(work_dir)):
+
+                # Modified: we remove the abspath checking and directly check if file exists
+                if not os.path.exists(os.path.join(work_dir, file_name)):
                     raise EnvException(f"cannot access file {file_name} because it is not in the work directory.")
             return func(*args, **kwargs)
         return wrapper
@@ -86,9 +90,13 @@ def check_file_in_work_dir(arg_names, **kwargs):
 
 @check_file_in_work_dir(["dir_path"])
 @record_low_level_step
-def list_files( dir_path, work_dir = ".", **kwargs):
+def list_files(dir_path, work_dir = ".", **kwargs):
     try:
-        observation = subprocess.check_output(["ls", "-F", os.path.join(work_dir,dir_path)]).decode("utf-8")
+        # Problem: agent was unable to access symbolic links
+        # observation = subprocess.check_output(["ls", "-F", os.path.join(work_dir,dir_path)]).decode("utf-8")
+        
+        # Modified: we enforce the environment to track symbolic links
+        observation = subprocess.check_output(["ls", "-L", "-F", os.path.join(work_dir,dir_path)]).decode("utf-8")
         return observation
     except:
         raise EnvException(f"Cannot list file in the {dir_path} directory")
@@ -112,7 +120,10 @@ def read_file(file_name, work_dir = '.', **kwargs):
 @record_low_level_step
 def write_file(file_name, content, work_dir = ".", **kwargs):
     try:
-        with open(os.path.join(work_dir,file_name), "w") as f:
+        # Modified: create parent directories of file path in advance to avoid error
+        file_path = os.path.join(work_dir, file_name)
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, "w") as f:
             f.write(content)
         observation = f"File {file_name} written successfully."
         return observation
@@ -125,9 +136,17 @@ def write_file(file_name, content, work_dir = ".", **kwargs):
 @record_low_level_step
 def append_file(file_name, content, work_dir = ".", **kwargs):
     try:
-        with open(os.path.join(work_dir,file_name), "a") as f:
+        # Modified: add warning output for appending to new files
+        file_path = os.path.join(work_dir, file_name)
+        if not os.path.exists(file_path):
+            observation = f"[Warning] File {file_name} does not previously exist.\n"
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        else:
+            observation = ""
+        
+        with open(os.path.join(work_dir, file_name), "a") as f:
             f.write(content)
-        observation = f"File {file_name} appended successfully."
+        observation += f"File {file_name} appended successfully."
         return observation
     except:
         raise EnvException(f"cannot append file {file_name}")
@@ -136,10 +155,13 @@ def append_file(file_name, content, work_dir = ".", **kwargs):
 @check_file_in_work_dir(["source", "destination"])
 @check_file_read_only(["destination"])
 @record_low_level_step
-def copy_file( source, destination, work_dir = ".", **kwargs):
+def copy_file(source, destination, work_dir = ".", **kwargs):
     
     try:
-        shutil.copyfile(os.path.join(work_dir,source), os.path.join(work_dir,destination))
+        # Modified: create parent directories of destination path in advance to avoid error
+        destination_path = os.path.join(work_dir, destination)
+        os.makedirs(os.path.dirname(destination_path), exist_ok=True)
+        shutil.copyfile(os.path.join(work_dir, source), destination_path)
         observation = f"File {source} copied to {destination}"
         return observation
     except:
@@ -148,8 +170,7 @@ def copy_file( source, destination, work_dir = ".", **kwargs):
 
 @check_file_in_work_dir(["script_name"])
 @record_low_level_step
-def undo_edit_script( script_name, work_dir = ".", **kwargs):
-    
+def undo_edit_script(script_name, work_dir = ".", **kwargs):
     backup_files = glob.glob(os.path.join(work_dir,"backup", f"{script_name}_*"))
     if len(backup_files) == 0:
         raise EnvException("There is no change to undo.")

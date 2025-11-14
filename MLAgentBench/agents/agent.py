@@ -60,7 +60,8 @@ class Agent:
                 pass
         self.prompt_tool_names = tool_names
         high_level_actions.EDIT_SCRIPT_MODEL = args.edit_script_llm_name
-        high_level_actions.EDIT_SCRIPT_MAX_TOKENS = args.edit_script_llm_max_tokens
+        high_level_actions.EDIT_SCRIPT_MAX_TOKENS = args.edit_script_max_tokens
+        high_level_actions.GENERAL_RESPONSE_MAX_TOKENS = args.general_response_max_tokens
         self.tools_prompt = self.construct_tools_prompt(tool_names, env.action_infos)
 
         self.initial_prompt = initial_prompt.format(tools_prompt=self.tools_prompt, tool_names=self.prompt_tool_names,  task_description=env.research_problem, format_prompt="\n".join([f"{k}: {format_prompt_dict[k]}" for k in self.valid_format_entires]))       
@@ -169,6 +170,16 @@ class Agent:
     def parse_action_input(cls, s, action_info):
         """ Parse the action input from a string to a dictionary using different methods."""
         try:
+            # Modified: try to extract from MarkDown format
+            s = s.strip()
+            if s.startswith("```") and s.endswith("```") and len(s) > 6:
+                s = s[3:-3].strip()
+                if s[0:4].lower() == "json":
+                    s = s[4:].strip()
+            
+            print("s =", s)
+            print("type(s) =", type(s))
+
             try:
                 d = json.loads(s)
             except:
@@ -177,6 +188,7 @@ class Agent:
                 d = json.loads(s)
             if set(d.keys()) != set(action_info.usage.keys()):
                 raise Exception("Argument mismatch")
+            print("parse_action_input =", d)
             return d
         except Exception as e:
             try:
@@ -265,7 +277,7 @@ class SimpleActionAgent(Agent):
             valid_response = False
             for _ in range(self.args.max_retries):
                 log_file = os.path.join(self.log_dir , f"step_{curr_step}_log.log")
-                completion = complete_text(prompt, log_file, self.args.llm_name)
+                completion = complete_text(prompt, log_file, self.args.llm_name, self.args.general_response_max_tokens)
 
                 try:
                     entries = self.parse_entries(completion, self.valid_format_entires)

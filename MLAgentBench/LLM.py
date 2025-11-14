@@ -2,6 +2,7 @@
 
 import os
 from functools import partial
+import tenacity
 import tiktoken
 from .schema import TooLongPromptError, LLMError
 
@@ -137,7 +138,7 @@ def complete_text_gemini(prompt, stop_sequences=[], model="gemini-pro", max_toke
         log_to_file(log_file, prompt, completion, model, max_tokens_to_sample)
     return completion
 
-def complete_text_claude(prompt, stop_sequences=[anthropic.HUMAN_PROMPT], model="claude-v1", max_tokens_to_sample = 2000, temperature=0.5, log_file=None, messages=None, **kwargs):
+def complete_text_claude(prompt, stop_sequences=[], model="claude-v1", max_tokens_to_sample = 2000, temperature=0.5, log_file=None, messages=None, **kwargs):
     """ Call the Claude API to complete a prompt."""
 
     ai_prompt = anthropic.AI_PROMPT
@@ -239,48 +240,83 @@ def complete_text_crfm(prompt="", stop_sequences = [], model="openai/gpt-4-0314"
         log_to_file(log_file, prompt if not messages else str(messages), completion, model, max_tokens_to_sample)
     return completion
 
-
-def complete_text_openai(prompt, stop_sequences=[], model="gpt-3.5-turbo", max_tokens_to_sample=500, temperature=0.2, log_file=None, **kwargs):
+def complete_text_openai(prompt, stop_sequences=[], model="gpt-3.5-turbo", max_tokens=500, temperature=0.2, log_file=None, **kwargs):
     """ Call the OpenAI API to complete a prompt."""
-    raw_request = {
-          "model": model,
-          "temperature": temperature,
-          "max_tokens": max_tokens_to_sample,
-          "stop": stop_sequences or None,  # API doesn't like empty list
-          **kwargs
-    }
-    if model.startswith("gpt-3.5") or model.startswith("gpt-4"):
-        messages = [{"role": "user", "content": prompt}]
-        response = openai.ChatCompletion.create(**{"messages": messages,**raw_request})
-        completion = response["choices"][0]["message"]["content"]
+
+    # for o-series models,
+    # `max_tokens` is replaced to `max_completion_tokens`;
+    # and `temperature` is disabled.
+    if model[0].lower() == 'o' and model[1].isdigit():
+        raw_request = {
+            "model": model,
+            "max_completion_tokens": max_tokens,
+            "stop": stop_sequences or None,  # API doesn't like empty list
+            **kwargs
+        }
     else:
-        response = openai.Completion.create(**{"prompt": prompt,**raw_request})
-        completion = response["choices"][0]["text"]
+        raw_request = {
+            "model": model,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stop": stop_sequences or None,  # API doesn't like empty list
+            **kwargs
+        }
+    print("raw_request =", raw_request)
+
+    client = openai.OpenAI(
+        base_url=os.getenv("OPENAI_BASE_URL"),
+        api_key=os.getenv("OPENAI_API_KEY"),
+        max_retries=0,
+    )
+
+    print(f"max_tokens={max_tokens}")
+    messages = [{"role": "user", "content": prompt}]
+    response = client.chat.completions.create(**{"messages": messages, **raw_request})
+
+    print("\n\n\n----------\nResponse:\n")
+    print(response)
+    print("----------\n\n\n")
+    completion = response.choices[0].message.content
+
+    # TODO: the current version is incompatible to other platforms
+    try:
+        with open("/root/autodl-tmp/agent/logs/agent_log/main_log", "a", 1) as f:
+            f.write(f"\nUsage: {response.usage}\n")
+    except Exception:
+        print("Fail to record token usage.")
+
     if log_file is not None:
-        log_to_file(log_file, prompt, completion, model, max_tokens_to_sample)
+        log_to_file(log_file, prompt, completion, model, max_tokens)
     return completion
 
-def complete_text(prompt, log_file, model, **kwargs):
+def complete_text(prompt, log_file, model, max_tokens, **kwargs):
     """ Complete text using the specified model with appropriate API. """
-    
-    if model.startswith("claude"):
-        # use anthropic API
-        completion = complete_text_claude(prompt, stop_sequences=[anthropic.HUMAN_PROMPT, "Observation:"], log_file=log_file, model=model, **kwargs)
-    elif model.startswith("gemini"):
-        completion = complete_text_gemini(prompt, stop_sequences=["Observation:"], log_file=log_file, model=model, **kwargs)
-    elif model.startswith("huggingface"):
-        completion = complete_text_hf(prompt, stop_sequences=["Observation:"], log_file=log_file, model=model, **kwargs)
-    elif "/" in model:
-        # use CRFM API since this specifies organization like "openai/..."
-        completion = complete_text_crfm(prompt, stop_sequences=["Observation:"], log_file=log_file, model=model, **kwargs)
-    else:
-        # use OpenAI API
-        completion = complete_text_openai(prompt, stop_sequences=["Observation:"], log_file=log_file, model=model, **kwargs)
-    return completion
+    print("complete_text: kwargs =", kwargs)
+    try:
+        if model.startswith("claude"):
+            # use anthropic API
+            completion = complete_text_claude(prompt, stop_sequences=[anthropic.HUMAN_PROMPT, "Observation:"], log_file=log_file, model=model, **kwargs)
+        elif model.startswith("gemini"):
+            completion = complete_text_gemini(prompt, stop_sequences=["Observation:"], log_file=log_file, model=model, **kwargs)
+        elif model.startswith("huggingface"):
+            completion = complete_text_hf(prompt, stop_sequences=["Observation:"], log_file=log_file, model=model, **kwargs)
+        elif "/" in model:
+            # use CRFM API since this specifies organization like "openai/..."
+            completion = complete_text_crfm(prompt, stop_sequences=["Observation:"], log_file=log_file, model=model, **kwargs)
+        else:
+            # use OpenAI API
+            completion = complete_text_openai(prompt, stop_sequences=["Observation:"], log_file=log_file, model=model, max_tokens=max_tokens, **kwargs)
+        return completion
+    except tenacity.RetryError as e:
+        return str(e)  # If we failed even after retrying, just return the error message and the agent will see its failed attempt
 
 # specify fast models for summarization etc
 FAST_MODEL = "claude-v1"
-def complete_text_fast(prompt, **kwargs):
-    return complete_text(prompt = prompt, model = FAST_MODEL, temperature =0.01, **kwargs)
+def complete_text_fast(prompt, max_tokens, **kwargs):
+    return complete_text(prompt = prompt, model = FAST_MODEL, max_tokens = max_tokens, temperature = 0.01, **kwargs)
 # complete_text_fast = partial(complete_text_openai, temperature= 0.01)
 
+
+# if __name__ == "__main__":
+#     prompt = "Introduce yourself to me briefly."
+#     print(complete_text(prompt=prompt, model="o3-mini-2025-01-31", max_tokens=1000, temperature=0.2, log_file=None))

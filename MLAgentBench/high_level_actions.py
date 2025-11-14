@@ -9,8 +9,14 @@ from .schema import ActionInfo, EnvException
 from .LLM import complete_text_fast, complete_text
 
 
-def reflection( things_to_reflect_on, work_dir = ".", research_problem = "", **kwargs):
+# Modified: to avoid ambiguity, we need to explictly set variable
+EDIT_SCRIPT_MODEL = None
+GENERAL_RESPONSE_MAX_TOKENS = 1000
+EDIT_SCRIPT_MAX_TOKENS = 4000
 
+
+def reflection(things_to_reflect_on, work_dir = ".", research_problem = "", **kwargs):
+    print("reflection =", kwargs)
     research_log_content = read_file("research_log.log", work_dir = work_dir,  **kwargs)
 
     prompt = f"""We are trying to solve this research problem: {research_problem}
@@ -21,11 +27,13 @@ def reflection( things_to_reflect_on, work_dir = ".", research_problem = "", **k
     Reflect on this: {things_to_reflect_on} 
     Give an answer in natural language paragraphs as truthfully as possible. 
     """
-    reflection = complete_text_fast(prompt, log_file=kwargs["log_file"])
+    # Modifed: change argument `max_tokens_to_sample` to `max_tokens` for complete_text_fast()
+    reflection = complete_text_fast(prompt, log_file=kwargs["log_file"], max_tokens=GENERAL_RESPONSE_MAX_TOKENS)
     return f"Reflection: {reflection}\n"
 
 
-def understand_file( file_name, things_to_look_for, work_dir = ".", **kwargs):
+def understand_file(file_name, things_to_look_for, work_dir = ".", **kwargs):
+    print("understand_file =", file_name)
 
     lines = read_file(file_name, work_dir = work_dir, **kwargs).split("\n")
     # group lines to blocks so that each block has at most 10000 characters
@@ -59,7 +67,8 @@ def understand_file( file_name, things_to_look_for, work_dir = ".", **kwargs):
     The description should short and also reference crtical lines in the script relevant to what is being looked for. Only describe what is objectively confirmed by the file content. Do not include guessed numbers. If you cannot find the answer to certain parts of the request, you should say "In this segment, I cannot find ...".
     """
 
-        completion = complete_text_fast(prompt, log_file=kwargs["log_file"]+f"_{idx}")
+        # Modifed: change argument `max_tokens_to_sample` to `max_tokens` for complete_text_fast()
+        completion = complete_text_fast(prompt, log_file=kwargs["log_file"]+f"_{idx}", max_tokens=GENERAL_RESPONSE_MAX_TOKENS)
         descriptions.append(completion)
     if len(descriptions) == 1:
         return descriptions[0]
@@ -69,12 +78,12 @@ def understand_file( file_name, things_to_look_for, work_dir = ".", **kwargs):
     {descriptions}
     """
 
-        completion = complete_text_fast(prompt, log_file=kwargs["log_file"])
+        # Modifed: change argument `max_tokens_to_sample` to `max_tokens` for complete_text_fast()
+        completion = complete_text_fast(prompt, log_file=kwargs["log_file"], max_tokens=GENERAL_RESPONSE_MAX_TOKENS)
 
         return completion
 
-EDIT_SCRIPT_MODEL = "claude-v1"
-EDIT_SCRIPT_MAX_TOKENS = 4000
+
 def edit_script(script_name, edit_instruction, save_name, work_dir = ".", **kwargs):
     #TODO: handle long file editing
     try:
@@ -93,13 +102,19 @@ def edit_script(script_name, edit_instruction, save_name, work_dir = ".", **kwar
 
     """
 
-    completion = complete_text(prompt, log_file=kwargs["log_file"], model=EDIT_SCRIPT_MODEL, max_tokens_to_sample=EDIT_SCRIPT_MAX_TOKENS)
+    # Modifed: change argument `max_tokens_to_sample` to `max_tokens` for complete_text()
+    completion = complete_text(prompt, log_file=kwargs["log_file"], model=EDIT_SCRIPT_MODEL, max_tokens=EDIT_SCRIPT_MAX_TOKENS)
 
     new_content = completion.split("```python")[1].split("```")[0].strip()
 
     # backup all old file with prefix script_name
-    backup_name = os.path.join(work_dir,"backup", f"{script_name}_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}")
-    shutil.copyfile(os.path.join(work_dir,script_name), backup_name)
+    backup_name = os.path.join(work_dir, "backup", f"{script_name}_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}")
+    
+    print("> copy file: {} -> {}".format(os.path.join(work_dir,script_name), backup_name))
+    
+    # Modified: create parent directories of backup file path in advance to avoid error
+    os.makedirs(os.path.dirname(backup_name), exist_ok=True)
+    shutil.copyfile(os.path.join(work_dir, script_name), backup_name)
 
     write_file(save_name, new_content, work_dir = work_dir, **kwargs)
 
@@ -109,12 +124,13 @@ def edit_script(script_name, edit_instruction, save_name, work_dir = ".", **kwar
     return f"The edited file is saved to {save_name}. Here is the diff, please check if the edit is correct and desirable:\n\n" + diff
 
 
-def append_to_research_log( content, work_dir = ".", **kwargs):
+def append_to_research_log(content, work_dir = ".", **kwargs):
     append_file("research_log.log", content+"\n", work_dir = work_dir, **kwargs)
 
     return "Successfully appended to research log"
 
-def edit_script_lines( script_name, start_line_number, end_line_number,edit_instruction, save_name, work_dir = ".", **kwargs):
+
+def edit_script_lines(script_name, start_line_number, end_line_number, edit_instruction, save_name, work_dir = ".", **kwargs):
     try:
         start_line_number = int(start_line_number)
         end_line_number = int(end_line_number)
@@ -139,12 +155,16 @@ def edit_script_lines( script_name, start_line_number, end_line_number,edit_inst
 
     """
 
-    completion = complete_text(prompt, log_file=kwargs["log_file"], model=EDIT_SCRIPT_MODEL, max_tokens_to_sample=EDIT_SCRIPT_MAX_TOKENS)
+    # Modifed: change argument `max_tokens_to_sample` to `max_tokens` for complete_text()
+    completion = complete_text(prompt, log_file=kwargs["log_file"], model=EDIT_SCRIPT_MODEL, max_tokens=EDIT_SCRIPT_MAX_TOKENS)
 
     new_content = "\n".join(lines[:int(start_line_number)-1]) + "\n" + completion.split("```python")[1].split("```")[0].strip() + "\n" + "\n".join(lines[int(end_line_number):])
 
     # backup all old file with prefix script_name
     backup_name = os.path.join(work_dir,"backup", f"{script_name}_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}")
+    
+    # Modified: create parent directories of backup file path in advance to avoid error
+    os.makedirs(os.path.dirname(backup_name), exist_ok=True)
     shutil.copyfile(os.path.join(work_dir,script_name), backup_name)
 
     write_file(save_name, new_content, work_dir = work_dir, **kwargs)
@@ -155,7 +175,7 @@ def edit_script_lines( script_name, start_line_number, end_line_number,edit_inst
     return f"The edited file is saved to {save_name}. Here is the diff, please check if the edit is correct and desirable:\n\n" + diff
 
 
-def inspect_script_lines( script_name, start_line_number, end_line_number, work_dir = ".", **kwargs):
+def inspect_script_lines(script_name, start_line_number, end_line_number, work_dir = ".", **kwargs):
     try:
         start_line_number = int(start_line_number)
         end_line_number = int(end_line_number)
@@ -190,7 +210,8 @@ Your current research log:
 Concisely summarize and list all relevant information from the research log that will be helpful for future step in this format:
 """
 
-    retrieval = complete_text_fast(prompt, log_file=kwargs["log_file"])
+    # Modifed: change argument `max_tokens_to_sample` to `max_tokens` for complete_text_fast()
+    retrieval = complete_text_fast(prompt, log_file=kwargs["log_file"], max_tokens=GENERAL_RESPONSE_MAX_TOKENS)
 
     return retrieval
 

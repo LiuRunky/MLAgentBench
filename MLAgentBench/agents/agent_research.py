@@ -1,6 +1,9 @@
 """ This file contains the agent class for our AI research agent."""
 import os
 import sys
+import time
+from datetime import timedelta
+
 import anthropic
 from MLAgentBench.LLM import complete_text_fast, complete_text
 from MLAgentBench.schema import Action
@@ -49,10 +52,12 @@ class ResearchAgent(Agent):
 
     def __init__(self, args, env):
         super().__init__(args, env)
+        print(f"ResearchAgent args={args}")
         self.valid_format_entires = ["Reflection",  "Research Plan and Status","Fact Check", "Thought","Action", "Action Input"] # use all entries by default
         if args.valid_format_entires:
             self.valid_format_entires = args.valid_format_entires
         self.initial_prompt = initial_prompt.format(tools_prompt=self.tools_prompt, tool_names=self.prompt_tool_names,  task_description=env.research_problem, format_prompt="\n".join([f"{k}: {format_prompt_dict[k]}" for k in self.valid_format_entires]))
+        self.start_time = time.time()
 
     def run(self, env):
         last_steps = self.args.max_steps_in_context
@@ -62,7 +67,9 @@ class ResearchAgent(Agent):
             f.write(self.initial_prompt + "\n")
 
         while not env.is_final() and len(self.history_steps) < self.args.agent_max_steps:
-
+            # if len(self.history_steps) > 5:
+            #     exit(0)
+            
             curr_step = len(self.history_steps)
 
             #### call LLM for next action ###
@@ -110,10 +117,11 @@ class ResearchAgent(Agent):
             valid_response = False
             for _ in range(self.args.max_retries):
                 log_file = os.path.join(self.log_dir , f"step_{curr_step}_log.log")
-                completion = complete_text(prompt, log_file, self.args.llm_name)
+                completion = complete_text(prompt, log_file, self.args.llm_name, self.args.general_response_max_tokens)
 
                 try:
                     entries = self.parse_entries(completion, self.valid_format_entires)
+                    print("entries =", entries)
                     assert entries["Action"].strip() in self.all_tool_names
                     valid_response = True
                 except:
@@ -132,7 +140,9 @@ class ResearchAgent(Agent):
 
             rg = entries["Research Plan and Status"]
             action = entries["Action"].strip()
+            print("action =", action)
             raw_action_input = entries["Action Input"]
+            print("raw_action_input =", raw_action_input)
 
             new_research_plan_content = rg.strip("```") + "\n\n" 
             entries["Research Plan and Status"] = new_research_plan_content
@@ -146,10 +156,16 @@ class ResearchAgent(Agent):
             except Exception as e:
                 action_input = raw_action_input
                 parsing_error = str(e)
-                
+            print("action_input =", action_input)
 
             with open(os.path.join(self.log_dir , "main_log"), "a", 1) as f:
                 f.write("Step " + str(curr_step) + ":\n")
+
+                elapsed_seconds = time.time() - self.start_time
+                hours, remainder = divmod(elapsed_seconds, 3600)
+                minutes, seconds = divmod(remainder, 60)
+                f.write(f"Used Time: {int(hours)} hr {int(minutes)} min {int(seconds)} sec\n")
+
                 f.write(anthropic.AI_PROMPT + "\n" + self.print_action(entries, self.valid_format_entires) + "\nObservation:\n")
 
 
@@ -241,8 +257,8 @@ Summarize the observation concisely in this format:
 
 Do not include any result that is guessed rather than directly confirmed by the observation. Do not include additional information or suggestions.
 """
-
-            completion = complete_text_fast(prompt, log_file=log_file +f"_{idx}")
+            # Modifed: change argument `max_tokens_to_sample` to `max_tokens` for complete_text_fast()
+            completion = complete_text_fast(prompt=prompt, max_tokens=self.args.general_response_max_tokens, log_file=log_file +f"_{idx}")
             descriptions.append(completion)
         if len(descriptions) == 1:
             completion = descriptions[0]
@@ -260,8 +276,8 @@ Summarize the observation concisely in this format:
 
 Do not include any result that is guessed rather than directly confirmed by the observation. Do not include additional information or suggestions.
 """
-
-            completion = complete_text_fast(prompt, log_file=log_file)
+            # Modifed: change argument `max_tokens_to_sample` to `max_tokens` for complete_text_fast()
+            completion = complete_text_fast(prompt=prompt, max_tokens=self.args.general_response_max_tokens, log_file=log_file)
         try:
             return completion.split("[Observation]:")[1]
         except:
@@ -284,6 +300,7 @@ Do not include any result that is guessed rather than directly confirmed by the 
         Do not include any result that is guessed rather than directly confirmed by the observation. Do not include additional information or suggestions.
         """
 
-        summary = "[Reasoning]:" + complete_text_fast(prompt, log_file=kwargs["log_file"]).split("[Reasoning]:")[1]
+        # Modifed: change argument `max_tokens_to_sample` to `max_tokens` for complete_text_fast()
+        summary = "[Reasoning]:" + complete_text_fast(prompt=prompt, max_tokens=self.args.general_response_max_tokens, log_file=kwargs["log_file"]).split("[Reasoning]:")[1]
         return summary
     

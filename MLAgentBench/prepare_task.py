@@ -12,13 +12,18 @@ def get_task_info(task):
     research_problem = None
     benchmark_folder_name= None
 
-    # Retrieve task from benchmarks
-    tasks = json.load(open(os.path.join(benchmarks_dir, "tasks.json")))
-    if task in tasks:
-        research_problem = tasks[task].get("research_problem", None)
-        benchmark_folder_name = tasks[task].get("benchmark_folder_name", None)
+    # Modifed: we will not require tasks.json
+    # # Retrieve task from benchmarks
+    # tasks = json.load(open(os.path.join(benchmarks_dir, "tasks.json")))
+    # if task in tasks:
+    #     research_problem = tasks[task].get("research_problem", None)
+    #     benchmark_folder_name = tasks[task].get("benchmark_folder_name", None)
 
-    elif task in os.listdir(benchmarks_dir) and os.path.isdir(os.path.join(benchmarks_dir, task, "env")):
+    # elif task in os.listdir(benchmarks_dir) and os.path.isdir(os.path.join(benchmarks_dir, task, "env")):
+    #     # default benchmarks
+    #     benchmark_folder_name = task 
+
+    if task in os.listdir(benchmarks_dir) and os.path.isdir(os.path.join(benchmarks_dir, task, "env")):
         # default benchmarks
         benchmark_folder_name = task 
     

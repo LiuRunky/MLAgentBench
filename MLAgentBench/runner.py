@@ -8,7 +8,7 @@ from MLAgentBench import LLM
 from MLAgentBench.environment import Environment
 from MLAgentBench.agents.agent import Agent, SimpleActionAgent, ReasoningActionAgent
 from MLAgentBench.agents.agent_research import ResearchAgent
-from MLAgentBench.agents.agent_langchain  import LangChainAgent
+# from MLAgentBench.agents.agent_langchain  import LangChainAgent
 try:
     from MLAgentBench.agents.agent_autogpt  import AutoGPTAgent
 except:
@@ -54,7 +54,8 @@ if __name__ == "__main__":
     parser.add_argument("--llm-name", type=str, default="claude-v1", help="llm name")
     parser.add_argument("--fast-llm-name", type=str, default="claude-v1", help="llm name")
     parser.add_argument("--edit-script-llm-name", type=str, default="claude-v1", help="llm name")
-    parser.add_argument("--edit-script-llm-max-tokens", type=int, default=4000, help="llm max tokens")
+    parser.add_argument("--edit-script-max-tokens", type=int, default=4000, help="llm max tokens")
+    parser.add_argument("--general-response-max-tokens", type=int, default=1000, help="general max tokens")
     parser.add_argument("--agent-max-steps", type=int, default=50, help="max iterations for agent")
 
     # research agent configs
@@ -76,5 +77,6 @@ if __name__ == "__main__":
         # should not use these actions when there is no retrieval
         args.actions_remove_from_prompt.extend(["Retrieval from Research Log", "Append Summary to Research Log", "Reflection"])
     LLM.FAST_MODEL = args.fast_llm_name
+    print(f"fast_llm_name = {LLM.FAST_MODEL}")
     run(getattr(sys.modules[__name__], args.agent_type), args)
     
