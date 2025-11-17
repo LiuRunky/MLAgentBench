@@ -261,7 +261,7 @@ def complete_text_openai(prompt, stop_sequences=[], model="gpt-3.5-turbo", max_t
             "stop": stop_sequences or None,  # API doesn't like empty list
             **kwargs
         }
-    print("raw_request =", raw_request)
+    # print("raw_request =", raw_request)
 
     client = openai.OpenAI(
         base_url=os.getenv("OPENAI_BASE_URL"),
@@ -269,7 +269,7 @@ def complete_text_openai(prompt, stop_sequences=[], model="gpt-3.5-turbo", max_t
         max_retries=0,
     )
 
-    print(f"max_tokens={max_tokens}")
+    # print(f"max_tokens={max_tokens}")
     messages = [{"role": "user", "content": prompt}]
     response = client.chat.completions.create(**{"messages": messages, **raw_request})
 
@@ -288,6 +288,7 @@ def complete_text_openai(prompt, stop_sequences=[], model="gpt-3.5-turbo", max_t
     if log_file is not None:
         log_to_file(log_file, prompt, completion, model, max_tokens)
     return completion
+
 
 def complete_text(prompt, log_file, model, max_tokens, **kwargs):
     """ Complete text using the specified model with appropriate API. """

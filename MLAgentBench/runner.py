@@ -4,7 +4,7 @@ This file is the entry point for MLAgentBench.
 
 import argparse
 import sys
-from MLAgentBench import LLM
+from MLAgentBench import LLM, low_level_actions
 from MLAgentBench.environment import Environment
 from MLAgentBench.agents.agent import Agent, SimpleActionAgent, ReasoningActionAgent
 from MLAgentBench.agents.agent_research import ResearchAgent
@@ -41,6 +41,7 @@ if __name__ == "__main__":
     parser.add_argument("--task", type=str, default="debug", help="task name")
     parser.add_argument("--log-dir", type=str, default="./logs", help="log dir")
     parser.add_argument("--work-dir", type=str, default="./workspace", help="work dir")
+    parser.add_argument("--data-dir", type=str, default="./workspace", help="data dir")  # agent can access data dir
     parser.add_argument("--max-steps", type=int, default=50, help="number of steps")
     parser.add_argument("--max-time", type=int, default=5* 60 * 60, help="max time")
     parser.add_argument("--device", type=int, default=0, help="device id")
@@ -77,6 +78,7 @@ if __name__ == "__main__":
         # should not use these actions when there is no retrieval
         args.actions_remove_from_prompt.extend(["Retrieval from Research Log", "Append Summary to Research Log", "Reflection"])
     LLM.FAST_MODEL = args.fast_llm_name
-    print(f"fast_llm_name = {LLM.FAST_MODEL}")
+    low_level_actions.DATA_DIR = args.data_dir
+    print(f"data_dir = {low_level_actions.DATA_DIR}")
     run(getattr(sys.modules[__name__], args.agent_type), args)
     

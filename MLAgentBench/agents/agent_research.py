@@ -121,7 +121,7 @@ class ResearchAgent(Agent):
 
                 try:
                     entries = self.parse_entries(completion, self.valid_format_entires)
-                    print("entries =", entries)
+                    # print("entries =", entries)
                     assert entries["Action"].strip() in self.all_tool_names
                     valid_response = True
                 except:
@@ -140,9 +140,7 @@ class ResearchAgent(Agent):
 
             rg = entries["Research Plan and Status"]
             action = entries["Action"].strip()
-            print("action =", action)
             raw_action_input = entries["Action Input"]
-            print("raw_action_input =", raw_action_input)
 
             new_research_plan_content = rg.strip("```") + "\n\n" 
             entries["Research Plan and Status"] = new_research_plan_content
@@ -156,7 +154,10 @@ class ResearchAgent(Agent):
             except Exception as e:
                 action_input = raw_action_input
                 parsing_error = str(e)
-            print("action_input =", action_input)
+            
+            import json
+            print("action =", action)
+            print("action_input =", json.dumps(action_input, indent=4))
 
             with open(os.path.join(self.log_dir , "main_log"), "a", 1) as f:
                 f.write("Step " + str(curr_step) + ":\n")
@@ -205,6 +206,10 @@ class ResearchAgent(Agent):
 
             with open(os.path.join(self.log_dir , "main_log"), "a", 1) as f:
                 f.write("\n```\n" + self.history_steps[-1]["observation"] + "\n```\n\n")
+            
+            print("\n\n\n----------\nObservation:\n")
+            print(observation)
+            print("----------\n\n\n")
 
 
             #######################################################

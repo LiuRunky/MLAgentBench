@@ -16,7 +16,7 @@ EDIT_SCRIPT_MAX_TOKENS = 4000
 
 
 def reflection(things_to_reflect_on, work_dir = ".", research_problem = "", **kwargs):
-    print("reflection =", kwargs)
+    # print("reflection =", kwargs)
     research_log_content = read_file("research_log.log", work_dir = work_dir,  **kwargs)
 
     prompt = f"""We are trying to solve this research problem: {research_problem}
@@ -33,7 +33,7 @@ def reflection(things_to_reflect_on, work_dir = ".", research_problem = "", **kw
 
 
 def understand_file(file_name, things_to_look_for, work_dir = ".", **kwargs):
-    print("understand_file =", file_name)
+    # print("understand_file =", file_name)
 
     lines = read_file(file_name, work_dir = work_dir, **kwargs).split("\n")
     # group lines to blocks so that each block has at most 10000 characters
@@ -110,7 +110,7 @@ def edit_script(script_name, edit_instruction, save_name, work_dir = ".", **kwar
     # backup all old file with prefix script_name
     backup_name = os.path.join(work_dir, "backup", f"{script_name}_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}")
     
-    print("> copy file: {} -> {}".format(os.path.join(work_dir,script_name), backup_name))
+    # print("> copy file: {} -> {}".format(os.path.join(work_dir,script_name), backup_name))
     
     # Modified: create parent directories of backup file path in advance to avoid error
     os.makedirs(os.path.dirname(backup_name), exist_ok=True)

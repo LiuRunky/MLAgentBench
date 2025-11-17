@@ -14,6 +14,10 @@ from .schema import Step, ActionInfo, Action, EnvException
 import readline # This is needed to make sure that the input() function works properly
 
 
+# we should explicitly set DATA_DIR, so that agent can correctly access symbolic links to data
+DATA_DIR = "."
+
+
 def normalize_args_kwargs(f, *args, **kwargs):
     """ This function takes a function and its arguments and returns a dictionary of the arguments, with the keys being the argument names."""
     sig = inspect.signature(f)
@@ -77,12 +81,26 @@ def check_file_in_work_dir(arg_names, **kwargs):
             work_dir = new_kwargs["work_dir"]
             for arg_name in arg_names:
                 file_name = new_kwargs[arg_name]
-                # Problem: the original code was unable to check files in `data` and `submission`, which use symbolic links
-                # if not os.path.abspath(os.path.join(work_dir, file_name)).startswith(os.path.abspath(work_dir)):
 
-                # Modified: we remove the abspath checking and directly check if file exists
-                if not os.path.exists(os.path.join(work_dir, file_name)):
-                    raise EnvException(f"cannot access file {file_name} because it is not in the work directory.")
+                # avoid hacking into parent directories of work dir by containing ".." in path
+                abs_work_dir = os.path.abspath(work_dir)
+                
+                norm_path = os.path.normpath(os.path.join(abs_work_dir, file_name))
+                if not os.path.exists(norm_path):
+                    if norm_path.startswith(abs_work_dir):
+                        # if file does not exist and its normpath is within work dir, that is okay
+                        pass
+                    else:
+                        # otherwise, agent is trying to create a file out of work dir
+                        raise EnvException(f"cannot access file {file_name} because it is not in the work directory.")
+                else:
+                    abs_path = os.path.abspath(os.path.join(work_dir, file_name))
+                    if abs_path.startswith(abs_work_dir) or abs_path.startswith(os.path.abspath(DATA_DIR)):
+                        # the absolute path can either be in work dir (source code, generated files) or data dir (downloaded data)
+                        pass
+                    else:
+                        # otherwise, agent is trying to access a file in an unexpected manner
+                        raise EnvException(f"cannot access file {file_name} because it is not in the work directory.")
             return func(*args, **kwargs)
         return wrapper
     return inner
@@ -98,11 +116,11 @@ def list_files(dir_path, work_dir = ".", **kwargs):
         # Modified: we enforce the environment to track symbolic links
         observation = subprocess.check_output(["ls", "-L", "-F", os.path.join(work_dir,dir_path)]).decode("utf-8")
         return observation
-    except:
+    except Exception as e:
+        print(f"Cannot list file in the {dir_path} directory: {e}.")
         raise EnvException(f"Cannot list file in the {dir_path} directory")
 
     
-
 
 
 @check_file_in_work_dir(["file_name"])
@@ -111,7 +129,9 @@ def read_file(file_name, work_dir = '.', **kwargs):
     try:
         observation = open(os.path.join(work_dir,file_name)).read()
         return observation
-    except:
+    except Exception as e:
+        # read_file() is often used to detect existence of files, thus Exception may not mean error
+        # print(f"Cannot read file {file_name}: {e}.")
         raise EnvException(f"cannot read file {file_name}")
 
 
@@ -127,7 +147,8 @@ def write_file(file_name, content, work_dir = ".", **kwargs):
             f.write(content)
         observation = f"File {file_name} written successfully."
         return observation
-    except:
+    except Exception as e:
+        print(f"Cannot write file {file_name}: {e}.")
         raise EnvException(f"cannot write file {file_name}")
 
 
@@ -148,7 +169,8 @@ def append_file(file_name, content, work_dir = ".", **kwargs):
             f.write(content)
         observation += f"File {file_name} appended successfully."
         return observation
-    except:
+    except Exception as e:
+        print(f"Cannot append file {file_name}: {e}.")
         raise EnvException(f"cannot append file {file_name}")
 
 
@@ -156,7 +178,6 @@ def append_file(file_name, content, work_dir = ".", **kwargs):
 @check_file_read_only(["destination"])
 @record_low_level_step
 def copy_file(source, destination, work_dir = ".", **kwargs):
-    
     try:
         # Modified: create parent directories of destination path in advance to avoid error
         destination_path = os.path.join(work_dir, destination)
@@ -164,7 +185,8 @@ def copy_file(source, destination, work_dir = ".", **kwargs):
         shutil.copyfile(os.path.join(work_dir, source), destination_path)
         observation = f"File {source} copied to {destination}"
         return observation
-    except:
+    except Exception as e:
+        print(f"Cannot copy file {file_name}: {e}.")
         raise EnvException(f"File {source} copy to {destination} failed. Check whether the source and destinations are valid.")
 
 
@@ -184,9 +206,9 @@ def undo_edit_script(script_name, work_dir = ".", **kwargs):
         new_content = open(os.path.join(work_dir,script_name)).read()
         observation = f"Content of {script_name} after undo the most recent edit:\n" + new_content
         return observation
-    except:
-        raise EnvException(f"Cannot undo the edit of file name {script_name}. Check the file name again."
-        )
+    except Exception as e:
+        print(f"Cannot undo file {script_name}: {e}.")
+        raise EnvException(f"Cannot undo the edit of file name {script_name}. Check the file name again.")
 
 
 @check_file_in_work_dir(["script_name"])
@@ -240,6 +262,7 @@ def execute_script(script_name, work_dir = ".", **kwargs):
             observation = "".join(stderr_lines)
         return "The script has been executed. Here is the output:\n" + observation
     except Exception as e:
+        print(f"Something went wrong in executing {script_name}: {e}.")
         raise EnvException(f"Something went wrong in executing {script_name}: {e}. Please check if it is ready to be executed.")
 
 
@@ -264,6 +287,7 @@ def python_repl(command, work_dir = ".", **kwargs):
         os.chdir(cwd)
         return output
     except Exception as e:
+        print(f"Something went wrong in executing {command}: {e}.")
         raise EnvException(f"Something went wrong in executing {command}: {e}")
 
 

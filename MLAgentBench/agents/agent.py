@@ -177,8 +177,8 @@ class Agent:
                 if s[0:4].lower() == "json":
                     s = s[4:].strip()
             
-            print("s =", s)
-            print("type(s) =", type(s))
+            # print("s =", s)
+            # print("type(s) =", type(s))
 
             try:
                 d = json.loads(s)
@@ -188,7 +188,7 @@ class Agent:
                 d = json.loads(s)
             if set(d.keys()) != set(action_info.usage.keys()):
                 raise Exception("Argument mismatch")
-            print("parse_action_input =", d)
+            # print("parse_action_input =", d)
             return d
         except Exception as e:
             try:
