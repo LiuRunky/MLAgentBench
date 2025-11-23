@@ -278,12 +278,12 @@ def complete_text_openai(prompt, stop_sequences=[], model="gpt-3.5-turbo", max_t
     print("----------\n\n\n")
     completion = response.choices[0].message.content
 
-    # TODO: the current version is incompatible to other platforms
-    try:
-        with open("/root/autodl-tmp/agent/logs/agent_log/main_log", "a", 1) as f:
-            f.write(f"\nUsage: {response.usage}\n")
-    except Exception:
-        print("Fail to record token usage.")
+    # # TODO: the current version is incompatible to other platforms
+    # try:
+    #     with open("/root/autodl-tmp/agent/logs/agent_log/main_log", "a", 1) as f:
+    #         f.write(f"\nUsage: {response.usage}\n")
+    # except Exception:
+    #     print("Fail to record token usage.")
 
     if log_file is not None:
         log_to_file(log_file, prompt, completion, model, max_tokens)
