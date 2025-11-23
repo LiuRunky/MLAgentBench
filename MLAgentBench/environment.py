@@ -364,11 +364,19 @@ class Environment:
                 file_path = os.path.join(relpath, file_name)
                 if file_path not in self.read_only_files:
                     # check wether the file to copy is part of self.log_dir
-                    if  os.path.abspath(os.path.join(self.work_dir, file_path)).startswith(os.path.abspath(self.log_dir.split("/env_log")[0])):
-                        continue                    
+                    if os.path.abspath(os.path.join(self.work_dir, file_path)).startswith(os.path.abspath(self.log_dir.split("/env_log")[0])):
+                        continue
+
                     if not os.path.exists(dest):
-                        os.makedirs(dest)            
-                    shutil.copyfile(os.path.join(self.work_dir, file_path), os.path.join(save_folder, file_path))
+                        os.makedirs(dest)
+                    
+                    # check the file size to avoid saving model checkpoints (we limit each file to be less than 10MB)
+                    # instead, we will create an empty file with prefix "(omitted)"
+                    file_size = os.path.getsize(os.path.join(self.work_dir, file_path))
+                    if file_size / (1024 * 1024) <= 10.0:
+                        open(f"(omitted) {file_name}", 'w').close()
+                    else:
+                        shutil.copyfile(os.path.join(self.work_dir, file_path), os.path.join(save_folder, file_path))
 
     ############## for logging convenience ##############
 
