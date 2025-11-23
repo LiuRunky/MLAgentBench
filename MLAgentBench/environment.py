@@ -366,7 +366,10 @@ class Environment:
                     # check wether the file to copy is part of self.log_dir
                     if os.path.abspath(os.path.join(self.work_dir, file_path)).startswith(os.path.abspath(self.log_dir.split("/env_log")[0])):
                         continue
-                    # check wether 
+                    
+                    # check wether the file is actually from data dir (place outside workdir)
+                    if not os.path.abspath(os.path.join(self.work_dir, file_path)).startswith(os.path.abspath(self.work_dir)):
+                        continue
 
                     if not os.path.exists(dest):
                         os.makedirs(dest)
