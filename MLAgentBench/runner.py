@@ -41,10 +41,12 @@ if __name__ == "__main__":
     parser.add_argument("--task", type=str, default="debug", help="task name")
     parser.add_argument("--log-dir", type=str, default="./logs", help="log dir")
     parser.add_argument("--work-dir", type=str, default="./workspace", help="work dir")
-    parser.add_argument("--data-dir", type=str, default="./workspace", help="data dir")  # agent can access data dir
+    # Modified: agent can access (possibly) data dir
+    parser.add_argument("--data-dir", type=str, default=[], nargs="*", help="data dir")
     parser.add_argument("--max-steps", type=int, default=50, help="number of steps")
-    parser.add_argument("--max-time", type=int, default=5* 60 * 60, help="max time")
-    parser.add_argument("--device", type=int, default=0, help="device id")
+    parser.add_argument("--max-time", type=int, default=24*60*60, help="max time")
+    # Modified: should allow for multiple GPUs
+    parser.add_argument("--device", type=str, default="", help="device id")
     parser.add_argument("--python", type=str, default="python", help="python command")
     parser.add_argument("--interactive", action="store_true", help="interactive mode")
     parser.add_argument("--resume", type=str, default=None, help="resume from a previous run")
@@ -80,5 +82,6 @@ if __name__ == "__main__":
     LLM.FAST_MODEL = args.fast_llm_name
     low_level_actions.DATA_DIR = args.data_dir
     print(f"data_dir = {low_level_actions.DATA_DIR}")
+    print(f"device = {args.device}")
     run(getattr(sys.modules[__name__], args.agent_type), args)
     

@@ -270,8 +270,12 @@ def complete_text_openai(prompt, stop_sequences=[], model="gpt-3.5-turbo", max_t
     )
 
     # print(f"max_tokens={max_tokens}")
-    messages = [{"role": "user", "content": prompt}]
-    response = client.chat.completions.create(**{"messages": messages, **raw_request})
+    try:
+        messages = [{"role": "user", "content": prompt}]
+        response = client.chat.completions.create(**{"messages": messages, **raw_request})
+    except Exception as e:
+        print(f"[Error] Failed to receive response from OpenAI API: {e}")
+        raise LLMError(e)
 
     print("\n\n\n----------\nResponse:\n")
     print(response)

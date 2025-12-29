@@ -72,6 +72,23 @@ def check_file_read_only(arg_names, **kwargs):
     return inner
 
 
+# Added: to allow for multiple data_dir
+def check_file_in_data_dir(abs_path) -> bool:
+    """ check if abs_path is within a data_dir """
+    assert isinstance(DATA_DIR, str) or isinstance(DATA_DIR, list), "[Error] data_dir should be a str or list."
+
+    if isinstance(DATA_DIR, str):
+        return abs_path.startswith(os.path.abspath(DATA_DIR))
+    
+    if isinstance(DATA_DIR, list):
+        for each_dir in DATA_DIR:
+            assert isinstance(each_dir, str), f"[Error] data_dir should consist of str, while current type is {type(each_dir)}."
+            if abs_path.startswith(os.path.abspath(each_dir)):
+                return True
+        return False
+
+
+# Modified: we allow access to data_dir
 def check_file_in_work_dir(arg_names, **kwargs):
     """ This decorator checks if the file is in the work directory. """
     def inner(func):
@@ -95,7 +112,7 @@ def check_file_in_work_dir(arg_names, **kwargs):
                         raise EnvException(f"cannot access file {file_name} because it is not in the work directory.")
                 else:
                     abs_path = os.path.abspath(os.path.join(work_dir, file_name))
-                    if abs_path.startswith(abs_work_dir) or abs_path.startswith(os.path.abspath(DATA_DIR)):
+                    if abs_path.startswith(abs_work_dir) or check_file_in_data_dir(abs_path):
                         # the absolute path can either be in work dir (source code, generated files) or data dir (downloaded data)
                         pass
                     else:
