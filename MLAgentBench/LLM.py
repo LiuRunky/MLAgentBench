@@ -240,7 +240,7 @@ def complete_text_crfm(prompt="", stop_sequences = [], model="openai/gpt-4-0314"
         log_to_file(log_file, prompt if not messages else str(messages), completion, model, max_tokens_to_sample)
     return completion
 
-def complete_text_openai(prompt, stop_sequences=[], model="gpt-3.5-turbo", max_tokens=500, temperature=0.2, log_file=None, **kwargs):
+def complete_text_openai(prompt, stop_sequences=[], model="gpt-3.5-turbo", max_tokens=2000, temperature=0.2, log_file=None, **kwargs):
     """ Call the OpenAI API to complete a prompt."""
 
     # for o-series models,
@@ -266,16 +266,12 @@ def complete_text_openai(prompt, stop_sequences=[], model="gpt-3.5-turbo", max_t
     client = openai.OpenAI(
         base_url=os.getenv("OPENAI_BASE_URL"),
         api_key=os.getenv("OPENAI_API_KEY"),
-        max_retries=0,
+        max_retries=3,
     )
 
     # print(f"max_tokens={max_tokens}")
-    try:
-        messages = [{"role": "user", "content": prompt}]
-        response = client.chat.completions.create(**{"messages": messages, **raw_request})
-    except Exception as e:
-        print(f"[Error] Failed to receive response from OpenAI API: {e}")
-        raise LLMError(e)
+    messages = [{"role": "user", "content": prompt}]
+    response = client.chat.completions.create(**{"messages": messages, **raw_request})
 
     print("\n\n\n----------\nResponse:\n")
     print(response)
