@@ -58,7 +58,9 @@ if __name__ == "__main__":
     parser.add_argument("--fast-llm-name", type=str, default="claude-v1", help="llm name")
     parser.add_argument("--edit-script-llm-name", type=str, default="claude-v1", help="llm name")
     parser.add_argument("--edit-script-max-tokens", type=int, default=4000, help="llm max tokens")
+    parser.add_argument("--edit-script-reasoning-effort", type=str, default=None, help="llm effort (for gpt-5)")
     parser.add_argument("--general-response-max-tokens", type=int, default=1000, help="general max tokens")
+    parser.add_argument("--general-response-reasoning-effort", type=str, default=None, help="general effort (for gpt-5)")
     parser.add_argument("--agent-max-steps", type=int, default=50, help="max iterations for agent")
 
     # research agent configs

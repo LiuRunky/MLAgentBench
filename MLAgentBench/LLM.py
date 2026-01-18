@@ -240,16 +240,32 @@ def complete_text_crfm(prompt="", stop_sequences = [], model="openai/gpt-4-0314"
         log_to_file(log_file, prompt if not messages else str(messages), completion, model, max_tokens_to_sample)
     return completion
 
-def complete_text_openai(prompt, stop_sequences=[], model="gpt-3.5-turbo", max_tokens=2000, temperature=0.2, log_file=None, **kwargs):
+def complete_text_openai(prompt, stop_sequences=[], model="gpt-5-mini", max_tokens=2000, effort=None, temperature=0.2, log_file=None, **kwargs):
     """ Call the OpenAI API to complete a prompt."""
 
-    # for o-series models,
-    # `max_tokens` is replaced to `max_completion_tokens`;
-    # and `temperature` is disabled.
+    print(f"\n\nComplete with model: {model}\n\n")
+
     if model[0].lower() == 'o' and model[1].isdigit():
+        # for o-series models,
+        # `max_tokens` is replaced to `max_completion_tokens`;
+        # and `temperature` is disabled.
         raw_request = {
             "model": model,
             "max_completion_tokens": max_tokens,
+            "stop": stop_sequences or None,  # API doesn't like empty list
+            **kwargs
+        }
+    elif model.startswith("gpt-5"):
+        # for gpt-5 series models,
+        # `max_tokens` is replaced to `max_completion_tokens`;
+        # `reasoing effort` is selectable;
+        # and `temperature` is disabled.
+        if effort is None:
+            effort = "low"  # we change default setting to `low`
+        raw_request = {
+            "model": model,
+            "max_completion_tokens": max_tokens,
+            "reasoning": {"effort": effort},
             "stop": stop_sequences or None,  # API doesn't like empty list
             **kwargs
         }
@@ -290,7 +306,7 @@ def complete_text_openai(prompt, stop_sequences=[], model="gpt-3.5-turbo", max_t
     return completion
 
 
-def complete_text(prompt, log_file, model, max_tokens, **kwargs):
+def complete_text(prompt, log_file, model, max_tokens, effort, **kwargs):
     """ Complete text using the specified model with appropriate API. """
     print("complete_text: kwargs =", kwargs)
     try:
@@ -306,15 +322,15 @@ def complete_text(prompt, log_file, model, max_tokens, **kwargs):
             completion = complete_text_crfm(prompt, stop_sequences=["Observation:"], log_file=log_file, model=model, **kwargs)
         else:
             # use OpenAI API
-            completion = complete_text_openai(prompt, stop_sequences=["Observation:"], log_file=log_file, model=model, max_tokens=max_tokens, **kwargs)
+            completion = complete_text_openai(prompt, stop_sequences=["Observation:"], log_file=log_file, model=model, max_tokens=max_tokens, effort=effort, **kwargs)
         return completion
     except tenacity.RetryError as e:
         return str(e)  # If we failed even after retrying, just return the error message and the agent will see its failed attempt
 
 # specify fast models for summarization etc
 FAST_MODEL = "claude-v1"
-def complete_text_fast(prompt, max_tokens, **kwargs):
-    return complete_text(prompt = prompt, model = FAST_MODEL, max_tokens = max_tokens, temperature = 0.01, **kwargs)
+def complete_text_fast(prompt, max_tokens, effort, **kwargs):
+    return complete_text(prompt = prompt, model = FAST_MODEL, max_tokens = max_tokens, effort = effort, temperature = 0.01, **kwargs)
 # complete_text_fast = partial(complete_text_openai, temperature= 0.01)
 
 

@@ -13,6 +13,8 @@ from .LLM import complete_text_fast, complete_text
 EDIT_SCRIPT_MODEL = None
 GENERAL_RESPONSE_MAX_TOKENS = 1000
 EDIT_SCRIPT_MAX_TOKENS = 4000
+GENERAL_RESPONSE_REASONING_EFFORT = None
+EDIT_SCRIPT_REASONING_EFFORT = None
 
 
 def reflection(things_to_reflect_on, work_dir = ".", research_problem = "", **kwargs):
@@ -28,7 +30,7 @@ def reflection(things_to_reflect_on, work_dir = ".", research_problem = "", **kw
     Give an answer in natural language paragraphs as truthfully as possible. 
     """
     # Modifed: change argument `max_tokens_to_sample` to `max_tokens` for complete_text_fast()
-    reflection = complete_text_fast(prompt, log_file=kwargs["log_file"], max_tokens=GENERAL_RESPONSE_MAX_TOKENS)
+    reflection = complete_text_fast(prompt, log_file=kwargs["log_file"], max_tokens=GENERAL_RESPONSE_MAX_TOKENS, effort=GENERAL_RESPONSE_REASONING_EFFORT)
     return f"Reflection: {reflection}\n"
 
 
@@ -68,7 +70,7 @@ def understand_file(file_name, things_to_look_for, work_dir = ".", **kwargs):
     """
 
         # Modifed: change argument `max_tokens_to_sample` to `max_tokens` for complete_text_fast()
-        completion = complete_text_fast(prompt, log_file=kwargs["log_file"]+f"_{idx}", max_tokens=GENERAL_RESPONSE_MAX_TOKENS)
+        completion = complete_text_fast(prompt, log_file=kwargs["log_file"]+f"_{idx}", max_tokens=GENERAL_RESPONSE_MAX_TOKENS, effort=GENERAL_RESPONSE_REASONING_EFFORT)
         descriptions.append(completion)
     if len(descriptions) == 1:
         return descriptions[0]
@@ -79,7 +81,7 @@ def understand_file(file_name, things_to_look_for, work_dir = ".", **kwargs):
     """
 
         # Modifed: change argument `max_tokens_to_sample` to `max_tokens` for complete_text_fast()
-        completion = complete_text_fast(prompt, log_file=kwargs["log_file"], max_tokens=GENERAL_RESPONSE_MAX_TOKENS)
+        completion = complete_text_fast(prompt, log_file=kwargs["log_file"], max_tokens=GENERAL_RESPONSE_MAX_TOKENS, effort=GENERAL_RESPONSE_REASONING_EFFORT)
 
         return completion
 
@@ -103,7 +105,7 @@ def edit_script(script_name, edit_instruction, save_name, work_dir = ".", **kwar
     """
 
     # Modifed: change argument `max_tokens_to_sample` to `max_tokens` for complete_text()
-    completion = complete_text(prompt, log_file=kwargs["log_file"], model=EDIT_SCRIPT_MODEL, max_tokens=EDIT_SCRIPT_MAX_TOKENS)
+    completion = complete_text(prompt, log_file=kwargs["log_file"], model=EDIT_SCRIPT_MODEL, max_tokens=EDIT_SCRIPT_MAX_TOKENS, effort=EDIT_SCRIPT_REASONING_EFFORT)
 
     new_content = completion.split("```python")[1].split("```")[0].strip()
 
@@ -156,7 +158,7 @@ def edit_script_lines(script_name, start_line_number, end_line_number, edit_inst
     """
 
     # Modifed: change argument `max_tokens_to_sample` to `max_tokens` for complete_text()
-    completion = complete_text(prompt, log_file=kwargs["log_file"], model=EDIT_SCRIPT_MODEL, max_tokens=EDIT_SCRIPT_MAX_TOKENS)
+    completion = complete_text(prompt, log_file=kwargs["log_file"], model=EDIT_SCRIPT_MODEL, max_tokens=EDIT_SCRIPT_MAX_TOKENS, effort=EDIT_SCRIPT_REASONING_EFFORT)
 
     new_content = "\n".join(lines[:int(start_line_number)-1]) + "\n" + completion.split("```python")[1].split("```")[0].strip() + "\n" + "\n".join(lines[int(end_line_number):])
 
@@ -211,7 +213,7 @@ Concisely summarize and list all relevant information from the research log that
 """
 
     # Modifed: change argument `max_tokens_to_sample` to `max_tokens` for complete_text_fast()
-    retrieval = complete_text_fast(prompt, log_file=kwargs["log_file"], max_tokens=GENERAL_RESPONSE_MAX_TOKENS)
+    retrieval = complete_text_fast(prompt, log_file=kwargs["log_file"], max_tokens=GENERAL_RESPONSE_MAX_TOKENS, effort=GENERAL_RESPONSE_REASONING_EFFORT)
 
     return retrieval
 

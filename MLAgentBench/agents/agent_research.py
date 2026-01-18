@@ -117,7 +117,7 @@ class ResearchAgent(Agent):
             valid_response = False
             for _ in range(self.args.max_retries):
                 log_file = os.path.join(self.log_dir , f"step_{curr_step}_log.log")
-                completion = complete_text(prompt, log_file, self.args.llm_name, self.args.general_response_max_tokens)
+                completion = complete_text(prompt, log_file, self.args.llm_name, self.args.general_response_max_tokens, self.args.general_response_reasoning_effort)
 
                 try:
                     entries = self.parse_entries(completion, self.valid_format_entires)
@@ -263,7 +263,7 @@ Summarize the observation concisely in this format:
 Do not include any result that is guessed rather than directly confirmed by the observation. Do not include additional information or suggestions.
 """
             # Modifed: change argument `max_tokens_to_sample` to `max_tokens` for complete_text_fast()
-            completion = complete_text_fast(prompt=prompt, max_tokens=self.args.general_response_max_tokens, log_file=log_file +f"_{idx}")
+            completion = complete_text_fast(prompt=prompt, max_tokens=self.args.general_response_max_tokens, effort=self.args.general_response_reasoning_effort, log_file=log_file +f"_{idx}")
             descriptions.append(completion)
         if len(descriptions) == 1:
             completion = descriptions[0]
@@ -282,7 +282,7 @@ Summarize the observation concisely in this format:
 Do not include any result that is guessed rather than directly confirmed by the observation. Do not include additional information or suggestions.
 """
             # Modifed: change argument `max_tokens_to_sample` to `max_tokens` for complete_text_fast()
-            completion = complete_text_fast(prompt=prompt, max_tokens=self.args.general_response_max_tokens, log_file=log_file)
+            completion = complete_text_fast(prompt=prompt, max_tokens=self.args.general_response_max_tokens, effort=self.args.general_response_reasoning_effort, log_file=log_file)
         try:
             return completion.split("[Observation]:")[1]
         except:
@@ -306,6 +306,6 @@ Do not include any result that is guessed rather than directly confirmed by the 
         """
 
         # Modifed: change argument `max_tokens_to_sample` to `max_tokens` for complete_text_fast()
-        summary = "[Reasoning]:" + complete_text_fast(prompt=prompt, max_tokens=self.args.general_response_max_tokens, log_file=kwargs["log_file"]).split("[Reasoning]:")[1]
+        summary = "[Reasoning]:" + complete_text_fast(prompt=prompt, max_tokens=self.args.general_response_max_tokens, effort=self.args.general_response_reasoning_effort, log_file=kwargs["log_file"]).split("[Reasoning]:")[1]
         return summary
     

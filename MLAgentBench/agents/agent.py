@@ -61,7 +61,9 @@ class Agent:
         self.prompt_tool_names = tool_names
         high_level_actions.EDIT_SCRIPT_MODEL = args.edit_script_llm_name
         high_level_actions.EDIT_SCRIPT_MAX_TOKENS = args.edit_script_max_tokens
+        high_level_actions.EDIT_SCRIPT_REASONING_EFFORT = args.edit_script_reasoning_effort
         high_level_actions.GENERAL_RESPONSE_MAX_TOKENS = args.general_response_max_tokens
+        high_level_actions.GENERAL_RESPONSE_REASONING_EFFORT = args.general_response_reasoning_effort
         self.tools_prompt = self.construct_tools_prompt(tool_names, env.action_infos)
 
         self.initial_prompt = initial_prompt.format(tools_prompt=self.tools_prompt, tool_names=self.prompt_tool_names,  task_description=env.research_problem, format_prompt="\n".join([f"{k}: {format_prompt_dict[k]}" for k in self.valid_format_entires]))       
@@ -277,7 +279,7 @@ class SimpleActionAgent(Agent):
             valid_response = False
             for _ in range(self.args.max_retries):
                 log_file = os.path.join(self.log_dir , f"step_{curr_step}_log.log")
-                completion = complete_text(prompt, log_file, self.args.llm_name, self.args.general_response_max_tokens)
+                completion = complete_text(prompt, log_file, self.args.llm_name, self.args.general_response_max_tokens, self.args.general_response_reasoning_effort)
 
                 try:
                     entries = self.parse_entries(completion, self.valid_format_entires)
