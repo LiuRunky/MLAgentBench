@@ -252,21 +252,19 @@ def complete_text_openai(prompt, stop_sequences=[], model="gpt-5-mini", max_toke
         raw_request = {
             "model": model,
             "max_completion_tokens": max_tokens,
-            "stop": stop_sequences or None,  # API doesn't like empty list
             **kwargs
         }
     elif model.startswith("gpt-5"):
         # for gpt-5 series models,
         # `max_tokens` is replaced to `max_completion_tokens`;
-        # `reasoing effort` is selectable;
+        # `reasoning_effort` is selectable;
         # and `temperature` is disabled.
         if effort is None:
             effort = "low"  # we change default setting to `low`
         raw_request = {
             "model": model,
             "max_completion_tokens": max_tokens,
-            "reasoning": {"effort": effort},
-            "stop": stop_sequences or None,  # API doesn't like empty list
+            "reasoning_effort": effort,
             **kwargs
         }
     else:
@@ -274,10 +272,8 @@ def complete_text_openai(prompt, stop_sequences=[], model="gpt-5-mini", max_toke
             "model": model,
             "temperature": temperature,
             "max_tokens": max_tokens,
-            "stop": stop_sequences or None,  # API doesn't like empty list
             **kwargs
         }
-    # print("raw_request =", raw_request)
 
     client = openai.OpenAI(
         base_url=os.getenv("OPENAI_BASE_URL"),
