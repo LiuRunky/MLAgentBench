@@ -5,6 +5,7 @@ import time
 from datetime import timedelta
 
 import anthropic
+from MLAgentBench import LLM
 from MLAgentBench.LLM import complete_text_fast, complete_text
 from MLAgentBench.schema import Action
 from .agent import Agent
@@ -14,25 +15,36 @@ initial_prompt = """You are a helpful research assistant. You have access to the
 
 Research Problem: {task_description}
 
-You do not know anything about this problem so far. 
+In the following, you will see a few previous interactions, or this is the initial one.
+
+"""
+
+closing_prompt = """
+Now it is your turn to take the next action.
 
 Follow these instructions and do not forget them:
 - First, come up with a high level plan based on your understanding of the problem and available tools and record it in the Research Plan and Status. You can revise the plan later.
-- Research Plan and Status should well organized and succinctly keep track of 1) high level plan (can be revised), 2) what steps have been done and what steps are in progress, 3) short results and conclusions of each step after it has been performed. 
+- Research Plan and Status should be well organized and succinctly keep track of 1) high level plan (can be revised), 2) what steps have been done and what steps are in progress, 3) short results and conclusions of each step after it has been performed. 
 - Research Plan and Status must only include progress that has been made by previous steps. It should not include results not directly confirmed by the previous observation. 
 - Performance numbers and estimates can only be confirmed and included in the status by running the code and observing the output.
 - You should come up with a good experiment design that addresses the problem, and whenever applicable, define and measure the baseline performance of the relevant system or model before attempting any improvements.
 - Follow the plan and try to achieve the goal as straightforwardly as possible.
 - Highlight the supporting experiment results and reasoning before drawing any conclusions. 
-- Do not try installing any new packages or libraries.
+- Avoid installing new packages or libraries, unless it is the only way to proceed working.
 - If you believe you have solved the problem, you can use the Final Answer action to submit your answer. You can only submit once, so double check that you have achieved the goal before submitting.
 
-Always respond in this format exactly:
+**RESPONSE TEMPLATE**
+-----
 {format_prompt}
-Observation: 
+-----
+
+You should **strictly follow the above template**. After that, you should wait for the execution of tool and the observation from environment, which is in the format of:
+Observation:
 ```
-the result of the action
+observation derived from environment
 ```
+
+Do not infer for the observation, you should stop as soon as you have made action.
 
 """
 
@@ -56,21 +68,25 @@ class ResearchAgent(Agent):
         self.valid_format_entires = ["Reflection",  "Research Plan and Status","Fact Check", "Thought","Action", "Action Input"] # use all entries by default
         if args.valid_format_entires:
             self.valid_format_entires = args.valid_format_entires
-        self.initial_prompt = initial_prompt.format(tools_prompt=self.tools_prompt, tool_names=self.prompt_tool_names,  task_description=env.research_problem, format_prompt="\n".join([f"{k}: {format_prompt_dict[k]}" for k in self.valid_format_entires]))
+        self.initial_prompt = initial_prompt.format(tools_prompt=self.tools_prompt, tool_names=self.prompt_tool_names,  task_description=env.research_problem)
+        self.closing_prompt = closing_prompt.format(format_prompt="\n".join([f"{k}: {format_prompt_dict[k]}" for k in self.valid_format_entires]))
         self.start_time = time.time()
+
+        LLM.LOG_DIR = self.log_dir
 
     def run(self, env):
         last_steps = self.args.max_steps_in_context
         last_observation_step = self.args.max_observation_steps_in_context
 
         with open(os.path.join(self.log_dir , "main_log"), "a", 1) as f:
-            f.write(self.initial_prompt + "\n")
+            f.write(self.initial_prompt + "\n" + self.closing_prompt)
 
         while not env.is_final() and len(self.history_steps) < self.args.agent_max_steps:
             # if len(self.history_steps) > 5:
             #     exit(0)
             
             curr_step = len(self.history_steps)
+            LLM.GLOBAL_STEPS = curr_step
 
             #### call LLM for next action ###
 
@@ -94,6 +110,8 @@ class ResearchAgent(Agent):
         """
             else:
                 prompt += "\nNow let's start!\n\n"
+            
+
 
             for idx in range(max(curr_step - last_steps, 0), curr_step):
                 action_string = ""
@@ -107,6 +125,8 @@ class ResearchAgent(Agent):
                         prompt += "\n```\n" + self.history_steps[idx]["observation"] + "\n```\n\n"
                     except:
                         import pdb; pdb.set_trace()
+            
+            prompt += "\n" + self.closing_prompt
                 
 
             ###############################################

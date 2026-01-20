@@ -6,6 +6,13 @@ import tenacity
 import tiktoken
 from .schema import TooLongPromptError, LLMError
 
+
+LOG_DIR = None   # we will record logs of token usage
+GLOBAL_STEPS = 0  # synchronize with agent
+
+FAST_MODEL = None  # for summary, etc.
+
+
 enc = tiktoken.get_encoding("cl100k_base")
 
 try:
@@ -243,7 +250,7 @@ def complete_text_crfm(prompt="", stop_sequences = [], model="openai/gpt-4-0314"
 def complete_text_openai(prompt, stop_sequences=[], model="gpt-5-mini", max_tokens=2000, effort=None, temperature=0.2, log_file=None, **kwargs):
     """ Call the OpenAI API to complete a prompt."""
 
-    print(f"\n\nComplete with model: {model}\n\n")
+    # print(f"\n\nComplete with model: {model}\n\n")
 
     if model[0].lower() == 'o' and model[1].isdigit():
         # for o-series models,
@@ -278,24 +285,46 @@ def complete_text_openai(prompt, stop_sequences=[], model="gpt-5-mini", max_toke
     client = openai.OpenAI(
         base_url=os.getenv("OPENAI_BASE_URL"),
         api_key=os.getenv("OPENAI_API_KEY"),
-        max_retries=3,
+        max_retries=3
     )
 
-    # print(f"max_tokens={max_tokens}")
     messages = [{"role": "user", "content": prompt}]
-    response = client.chat.completions.create(**{"messages": messages, **raw_request})
+    response = client.chat.completions.create(**{
+        "messages": messages,
+        **raw_request
+    })
 
     print("\n\n\n----------\nResponse:\n")
     print(response)
     print("----------\n\n\n")
-    completion = response.choices[0].message.content
 
-    # # TODO: the current version is incompatible to other platforms
-    # try:
-    #     with open("/root/autodl-tmp/agent/logs/agent_log/main_log", "a", 1) as f:
-    #         f.write(f"\nUsage: {response.usage}\n")
-    # except Exception:
-    #     print("Fail to record token usage.")
+    completion = response.choices[0].message.content
+    input_tokens = response.usage.prompt_tokens
+    output_tokens = response.usage.completion_tokens
+
+    query_dict = {
+        "system_message": [],
+        "user_message": prompt,
+        "response": completion,
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens
+    }
+
+    import json
+    from pathlib import Path
+
+    step_logs_dir = (Path(LOG_DIR) / "steps").resolve()
+    if not os.path.exists(step_logs_dir):
+        os.makedirs(step_logs_dir)
+    
+    substep = 0
+    output_filename = f"steps_{GLOBAL_STEPS}_{substep}.json"
+    while os.path.exists(step_logs_dir / output_filename):
+        substep += 1
+        output_filename = f"steps_{GLOBAL_STEPS}_{substep}.json"
+    
+    with open(step_logs_dir / output_filename, 'w', encoding="UTF-8") as f:
+        json.dump(query_dict, f, ensure_ascii=False, indent=2)
 
     if log_file is not None:
         log_to_file(log_file, prompt, completion, model, max_tokens)
@@ -323,8 +352,7 @@ def complete_text(prompt, log_file, model, max_tokens, effort, **kwargs):
     except tenacity.RetryError as e:
         return str(e)  # If we failed even after retrying, just return the error message and the agent will see its failed attempt
 
-# specify fast models for summarization etc
-FAST_MODEL = "claude-v1"
+
 def complete_text_fast(prompt, max_tokens, effort, **kwargs):
     return complete_text(prompt = prompt, model = FAST_MODEL, max_tokens = max_tokens, effort = effort, temperature = 0.01, **kwargs)
 # complete_text_fast = partial(complete_text_openai, temperature= 0.01)
