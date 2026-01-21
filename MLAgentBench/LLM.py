@@ -301,13 +301,15 @@ def complete_text_openai(prompt, stop_sequences=[], model="gpt-5-mini", max_toke
     completion = response.choices[0].message.content
     input_tokens = response.usage.prompt_tokens
     output_tokens = response.usage.completion_tokens
+    cached_tokens = response.usage.prompt_tokens_details.cached_tokens if hasattr(response.usage, "prompt_tokens_details") else None
 
     query_dict = {
         "system_message": [],
         "user_message": prompt,
         "response": completion,
         "input_tokens": input_tokens,
-        "output_tokens": output_tokens
+        "output_tokens": output_tokens,
+        "cached_tokens": cached_tokens
     }
 
     import json
