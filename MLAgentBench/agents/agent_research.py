@@ -141,7 +141,7 @@ class ResearchAgent(Agent):
 
                 try:
                     entries = self.parse_entries(completion, self.valid_format_entires)
-                    # print("entries =", entries)
+                    print("entries =", entries)
                     assert entries["Action"].strip() in self.all_tool_names
                     valid_response = True
                 except:

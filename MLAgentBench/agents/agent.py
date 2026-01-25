@@ -179,8 +179,8 @@ class Agent:
                 if s[0:4].lower() == "json":
                     s = s[4:].strip()
             
-            # print("s =", s)
-            # print("type(s) =", type(s))
+            print("s =", s)
+            print("type(s) =", type(s))
 
             try:
                 d = json.loads(s)
@@ -209,7 +209,7 @@ class Agent:
         s = s[:index]
         pattern = ""
         for e in entries:
-            pattern += f'"{e}":([\s\S]*),\s*'
+            pattern += fr'"{e}":([\s\S]*),\s*'
         pattern = pattern[:-4]
         result = re.search(pattern, s, re.MULTILINE)
 
@@ -236,7 +236,7 @@ class Agent:
         pattern = ""
         for e in entries:
             e = e.replace("[", "\[").replace("]", "\]")
-            pattern += f"{e}:([\s\S]*)"
+            pattern += fr"{e}:([\s\S]*)"
         result = re.search(pattern, s, re.MULTILINE)
         if result is None:
             raise Exception("Invalid: " + s)
