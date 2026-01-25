@@ -306,7 +306,7 @@ def complete_text_openai(prompt, stop_sequences=[], model="gpt-5-mini", max_toke
         except Exception as e:
             raise
     
-    # time.sleep(15)
+    time.sleep(15)
 
     print("\n\n\n----------\nResponse:\n")
     print(response)
