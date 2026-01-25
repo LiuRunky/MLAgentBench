@@ -290,6 +290,9 @@ def complete_text_openai(prompt, stop_sequences=[], model="gpt-5-mini", max_toke
 
     messages = [{"role": "user", "content": prompt}]
 
+    import time
+    import random
+
     while True:
         try:
             response = client.chat.completions.create(**{
@@ -299,11 +302,11 @@ def complete_text_openai(prompt, stop_sequences=[], model="gpt-5-mini", max_toke
             break
         except openai.RateLimitError as e:
             print(f"RateLimitError: {e}")
-            import time
-            import random
             time.sleep(random.randint(30, 60))
         except Exception as e:
             raise
+    
+    time.sleep(15)
 
     print("\n\n\n----------\nResponse:\n")
     print(response)
